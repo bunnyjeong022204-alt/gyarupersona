@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<meta name="theme-color" content="#9bbbd4">
+<meta name="theme-color" content="#ff4fa3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
@@ -11,30 +11,47 @@
 <title>미유 갸루톡</title>
 </head>
 <body>
+<div class="bg-sparks" aria-hidden="true">
+  <i style="--x:6%;--y:14%;--s:18px;--d:0s"></i>
+  <i style="--x:88%;--y:10%;--s:26px;--d:.6s"></i>
+  <i style="--x:14%;--y:82%;--s:22px;--d:1.2s"></i>
+  <i style="--x:92%;--y:70%;--s:16px;--d:.3s"></i>
+  <i style="--x:50%;--y:6%;--s:12px;--d:1.8s"></i>
+  <i style="--x:4%;--y:50%;--s:14px;--d:.9s"></i>
+  <i style="--x:96%;--y:36%;--s:20px;--d:2.2s"></i>
+  <i style="--x:72%;--y:92%;--s:14px;--d:1.5s"></i>
+</div>
 <div id="app">
   <!-- 채팅 화면 -->
   <section id="chatView" class="view">
     <header class="topbar">
-      <div class="who"><div class="avatar">💖</div><div><b>미유 (みゆ)</b><small id="status">갸루 스타일 전문가 · 17세</small></div></div>
+      <div class="who">
+        <div class="avatar" data-ic="heart" data-fill="1"></div>
+        <div style="min-width:0"><b>미유<span class="jp">みゆ</span></b><small><span class="mini" data-ic="sparkle" data-fill="1"></span><span id="status">갸루 스타일 전문가 · 17세</span></small></div>
+      </div>
       <div class="actions">
-        <button id="recsBtn" title="추천함" aria-label="추천함">⭐</button>
-        <button id="settingsBtn" title="설정" aria-label="설정">⚙️</button>
+        <button id="recsBtn" class="icon-round gold" title="추천함" aria-label="추천함" data-ic="star"></button>
+        <button id="settingsBtn" class="icon-round" title="설정" aria-label="설정" data-ic="gear"></button>
       </div>
     </header>
     <main id="messages" aria-live="polite"></main>
     <div id="quick" class="quick"></div>
     <div id="preview" class="preview hidden"></div>
     <footer class="composer">
-      <button id="attachBtn" class="icon-btn" aria-label="사진 첨부">＋</button>
+      <button id="attachBtn" class="icon-btn" aria-label="사진 첨부" data-ic="plus"></button>
       <input id="file" type="file" accept="image/*" multiple hidden>
-      <textarea id="input" rows="1" placeholder="메시지 입력" enterkeyhint="send"></textarea>
-      <button id="sendBtn" class="send" disabled>전송</button>
+      <textarea id="input" rows="1" placeholder="오늘은 어떤 갸루 할래?" enterkeyhint="send"></textarea>
+      <button id="sendBtn" class="send" disabled></button>
     </footer>
   </section>
 
   <!-- 추천함 -->
   <section id="recsView" class="view hidden">
-    <header class="topbar"><button id="recsBack" class="back" aria-label="뒤로">‹</button><b>내 추천함</b><span></span></header>
+    <header class="topbar">
+      <button id="recsBack" class="icon-round" aria-label="뒤로" data-ic="back"></button>
+      <b class="ttl">내 추천함</b>
+      <span style="width:40px"></span>
+    </header>
     <div id="recsList" class="recs-list"></div>
   </section>
 
@@ -42,17 +59,25 @@
   <div id="sheetBg" class="sheet-bg hidden"></div>
   <div id="sheet" class="sheet hidden" role="dialog" aria-label="설정">
     <div class="grab"></div>
-    <h3>설정</h3>
-    <label class="field-label">Groq API 키</label>
+    <h3><span data-ic="sparkle" data-fill="1"></span>설정</h3>
+    <label class="field-label"><span data-ic="key"></span>Groq API 키 (대화용)</label>
     <div id="keyState" class="key-state"></div>
     <div class="key-row">
       <input id="keyInput" type="password" placeholder="gsk_..." autocomplete="off" autocapitalize="off" spellcheck="false">
       <button id="keySave" class="btn yellow">저장</button>
     </div>
-    <p class="hint">🔒 키는 내 서버에 암호화되어 저장되고, 브라우저 코드·저장소에는 남지 않아요. 저장 후엔 화면에서도 다시 보이지 않아요.
+    <p class="hint"><span data-ic="lock" style="width:13px;height:13px;vertical-align:-2px"></span> 키는 내 서버에 암호화되어 저장되고, 브라우저 코드·저장소에는 남지 않아요. 저장 후엔 화면에서도 다시 보이지 않아요.
       <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">키 발급받기</a></p>
-    <label class="field-label">모델 (사진 분석은 비전 모델 필요)</label>
+    <label class="field-label"><span data-ic="sparkle"></span>모델 (사진 분석은 비전 모델 필요)</label>
     <select id="modelSel"></select>
+    <label class="field-label"><span data-ic="wand"></span>이미지 생성 키 (Google Gemini, 선택)</label>
+    <div id="imgKeyState" class="key-state"></div>
+    <div class="key-row">
+      <input id="imgKeyInput" type="password" placeholder="AIza..." autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button id="imgKeySave" class="btn yellow">저장</button>
+    </div>
+    <p class="hint">"내 모습 만들기" 버튼을 눌렀을 때만 내 사진이 Google 서버로 전송돼요. 키는 위와 같은 방식으로 서버에만 저장돼요.
+      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">키 발급받기</a> · <a href="#" id="imgKeyDelete">키 삭제</a></p>
     <div class="sheet-btns">
       <button id="keyDelete" class="btn danger">키 삭제</button>
       <button id="clearChat" class="btn">대화 기록 삭제</button>
@@ -61,7 +86,7 @@
   </div>
 
   <div id="lightbox" class="lightbox hidden"><img alt=""></div>
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden" role="status"></div>
 </div>
 <script src="app.js"></script>
 </body>

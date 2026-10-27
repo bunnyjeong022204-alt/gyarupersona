@@ -32,6 +32,32 @@ const SYSTEM_PROMPT = `너는 "미유(みゆ)", 17살 일본인 갸루 소녀야
 \`\`\`
 makeup/hair/fashion은 각 2~4개, colors는 어울리는 HEX 3~5개.`;
 
+// ───────── 아이콘 (SVG, 24px 기준 선 아이콘) ─────────
+const ICONS = {
+  sparkle: '<path d="M12 2.5l2.3 6.7 6.7 2.3-6.7 2.3L12 20.5l-2.3-6.7L3 11.5l6.7-2.3z"/>',
+  heart: '<path d="M12 20.3s-7.6-4.5-7.6-10.1a4.3 4.3 0 0 1 7.6-2.7 4.3 4.3 0 0 1 7.6 2.7c0 5.6-7.6 10.1-7.6 10.1z"/>',
+  star: '<path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.7l-5.2 2.7 1-5.9-4.3-4.1 5.9-.8z"/>',
+  bookmark: '<path d="M6.5 3.5h11v17L12 16.6l-5.5 3.9z"/>',
+  camera: '<path d="M4 8h3l1.8-2.5h6.4L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  send: '<path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>',
+  stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/>',
+  gear: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/>',
+  trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>',
+  x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  download: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/>',
+  wand: '<path d="M4.5 19.5L15 9"/><path d="M14 4.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/><path d="M19 12l.5 1.3 1.3.5-1.3.5L19 15.6l-.5-1.3-1.3-.5 1.3-.5z"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2.5 2.5M14 9l2 2"/>',
+  palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.4 0 2-.9 1.6-2-.5-1.2.2-2.5 1.6-2.5H18a3.5 3.5 0 0 0 3.5-3.5C21.5 7.4 17.4 3.5 12 3.5z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7.5" r="1.1"/><circle cx="15.5" cy="8" r="1.1"/>',
+  lipstick: '<path d="M14.5 4.5l5 5-8 8-5-5z"/><path d="M5.5 18.5L3.5 20.5M9.5 14.5l-1.2 1.2"/>',
+  scissors: '<circle cx="6" cy="6.5" r="2.5"/><circle cx="6" cy="17.5" r="2.5"/><path d="M8.2 8.2L20 17M8.2 15.8L20 7"/>',
+  hanger: '<path d="M12 8.5V6a2 2 0 1 0-2-2"/><path d="M12 8.5L3.5 15.5h17z"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+};
+const ic = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+document.querySelectorAll('[data-ic]').forEach((el) => { el.innerHTML = ic(el.dataset.ic, el.dataset.fill ? 'fill' : ''); });
+
 const MAX_HISTORY = 16;
 const $ = (s) => document.querySelector(s);
 const msgsEl = $('#messages'), inputEl = $('#input'), sendBtn = $('#sendBtn');
@@ -39,7 +65,7 @@ const msgsEl = $('#messages'), inputEl = $('#input'), sendBtn = $('#sendBtn');
 let messages = [];   // {id, role, text, images, ts, rec, error}
 let recs = [];       // 저장한 추천 {id, rec, ts}
 let pending = [];    // 첨부 대기 이미지(dataURL)
-let busy = false, hasKey = false, abortCtl = null;
+let busy = false, hasKey = false, hasImgKey = false, abortCtl = null;
 
 // ───────── 저장소 (IndexedDB: 사진 포함 채팅 기록) ─────────
 const DB = (() => {
@@ -80,12 +106,12 @@ function splitReply(raw) {
 // ───────── 렌더링 ─────────
 function recCard(rec, id, showSave = true) {
   const a = rec.analysis || {};
-  const list = (title, arr) => Array.isArray(arr) && arr.length
-    ? `<div class="sec"><h5>${title}</h5><ul>${arr.map((x) => `<li><b>${esc(x.item)}</b><span>${esc(x.tip)}</span></li>`).join('')}</ul></div>` : '';
+  const list = (icon, title, arr) => Array.isArray(arr) && arr.length
+    ? `<div class="sec"><h5>${ic(icon)}${title}</h5><ul>${arr.map((x) => `<li><b>${esc(x.item)}</b><span>${esc(x.tip)}</span></li>`).join('')}</ul></div>` : '';
   const colors = (rec.colors || []).filter((c) => /^#[0-9a-f]{3,8}$/i.test(c));
   const saved = recs.some((r) => r.id === id);
   return `<div class="rec">
-    <div class="rec-head"><small>✨ 미유의 갸루 추천</small><h4>${esc(rec.gyaruStyle || '맞춤 스타일')}</h4></div>
+    <div class="rec-head"><small>${ic('sparkle', 'fill')}미유의 갸루 추천</small><h4>${esc(rec.gyaruStyle || '맞춤 스타일')}</h4></div>
     <div class="rec-body">
       <div class="chips">
         ${a.faceShape ? `<span class="chip"><b>얼굴형</b>${esc(a.faceShape)}</span>` : ''}
@@ -93,10 +119,10 @@ function recCard(rec, id, showSave = true) {
         ${a.skinTone ? `<span class="chip"><b>피부톤</b>${esc(a.skinTone)}</span>` : ''}
       </div>
       ${a.summary ? `<div>${esc(a.summary)}</div>` : ''}
-      ${list('💄 메이크업', rec.makeup)}${list('💇‍♀️ 헤어', rec.hair)}${list('👗 패션', rec.fashion)}
-      ${colors.length ? `<div class="sec"><h5>🎨 어울리는 컬러</h5><div class="swatches">${colors.map((c) => `<i style="background:${c}" title="${c}"></i>`).join('')}</div></div>` : ''}
+      ${list('lipstick', '메이크업', rec.makeup)}${list('scissors', '헤어', rec.hair)}${list('hanger', '패션', rec.fashion)}
+      ${colors.length ? `<div class="sec"><h5>${ic('palette')}어울리는 컬러</h5><div class="swatches">${colors.map((c) => `<i style="background:${c}" title="${c}"></i>`).join('')}</div></div>` : ''}
     </div>
-    ${showSave ? `<div class="rec-actions"><button data-save="${id}" class="${saved ? 'saved' : ''}">${saved ? '⭐ 저장됨' : '☆ 추천함에 저장'}</button></div>` : ''}
+    ${showSave ? `<div class="rec-actions"><button class="pill grad" data-gen="${id}">${ic('wand')}내 모습 만들기</button><button class="pill ${saved ? 'saved' : ''}" data-save="${id}">${ic('bookmark', saved ? 'fill' : '')}${saved ? '저장됨' : '추천함에 저장'}</button></div>` : ''}
   </div>`;
 }
 
@@ -108,13 +134,14 @@ function msgHTML(m, prev) {
   const time = `<span class="time">${fmtTime(m.ts)}</span>`;
   let col = '';
   if (me && m.images?.length) col += `<div class="imgs">${m.images.map((s, i) => `<img src="${s}" data-zoom alt="첨부 ${i + 1}">`).join('')}</div>`;
+  if (m.genImage) col += `<div class="imgs gen"><img src="${m.genImage}" data-zoom alt="미유가 만든 스타일 이미지"></div><div class="line"><a class="pill" href="${m.genImage}" download="miyu-style.png">${ic('download')}저장하기</a></div>`;
   if (m.typing) col += `<div class="line"><div class="bubble typing"><i></i><i></i><i></i></div></div>`;
   parts.forEach((p, i) => {
     col += `<div class="line"><div class="bubble${m.error ? ' err' : ''}">${esc(p)}</div>${i === parts.length - 1 && !m.rec ? time : ''}</div>`;
   });
   if (m.rec) col += recCard(m.rec, m.id) + `<div class="line">${time}</div>`;
   if (me && !parts.length && m.images?.length) col += `<div class="line">${time}</div>`;
-  html += `<div class="row ${me ? 'me' : ''}" data-id="${m.id}">${me ? '' : '<div class="avatar">💖</div>'}<div class="col">${me ? '' : '<div class="name">미유</div>'}${col}</div></div>`;
+  html += `<div class="row ${me ? 'me' : ''}" data-id="${m.id}">${me ? '' : `<div class="avatar">${ic('heart', 'fill')}</div>`}<div class="col">${me ? '' : '<div class="name">미유</div>'}${col}</div></div>`;
   return html;
 }
 
@@ -128,21 +155,25 @@ function renderOne(m) {
   const old = msgsEl.querySelector(`.row[data-id="${m.id}"]`);
   const tmp = document.createElement('div'); tmp.innerHTML = html;
   const row = tmp.querySelector('.row');
-  if (old) { old.replaceWith(row); } else { while (tmp.firstChild !== row && tmp.firstChild) msgsEl.appendChild(tmp.firstChild); msgsEl.appendChild(row); }
+  if (old) { old.replaceWith(row); } else {
+    row.classList.add('new');  // 새 말풍선만 등장 애니메이션 (스트리밍 갱신에는 안 씀)
+    while (tmp.firstChild !== row && tmp.firstChild) msgsEl.appendChild(tmp.firstChild);
+    msgsEl.appendChild(row);
+  }
   const near = msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < 160;
   if (near) scrollDown();
 }
 
 function renderRecs() {
   const el = $('#recsList');
-  if (!recs.length) { el.innerHTML = '<div class="empty">아직 저장한 추천이 없어 🥺<br>채팅에서 ⭐ 눌러서 저장해봐!</div>'; return; }
-  el.innerHTML = recs.slice().reverse().map((r) => `${recCard(r.rec, r.id, false)}<button class="del" data-del="${r.id}">🗑 삭제</button>`).join('');
+  if (!recs.length) { el.innerHTML = `<div class="empty">${ic('star', 'fill')}<br>아직 저장한 추천이 없어<br>채팅에서 저장 버튼을 눌러봐!</div>`; return; }
+  el.innerHTML = recs.slice().reverse().map((r) => `${recCard(r.rec, r.id, false)}<button class="del" data-del="${r.id}">${ic('trash')}삭제</button>`).join('');
 }
 
 function renderPreview() {
   const el = $('#preview');
   el.classList.toggle('hidden', !pending.length);
-  el.innerHTML = pending.map((s, i) => `<div><img src="${s}" alt=""><button data-rm="${i}" aria-label="삭제">✕</button></div>`).join('');
+  el.innerHTML = pending.map((s, i) => `<div><img src="${s}" alt=""><button data-rm="${i}" aria-label="삭제">${ic('x')}</button></div>`).join('');
   updateSend();
 }
 function updateSend() { sendBtn.disabled = busy || (!inputEl.value.trim() && !pending.length); }
@@ -215,7 +246,7 @@ async function send(textOverride) {
       renderOne(bot);
     }
     const s = splitReply(raw);
-    if (!s.text && !s.rec) throw new Error('답장이 비어있어. 모델을 바꿔보거나 다시 보내줘 🥺');
+    if (!s.text && !s.rec) throw new Error('답장이 비어있어. 모델을 바꿔보거나 다시 보내줘!');
     Object.assign(bot, { text: s.text, rec: s.rec, typing: false, temp: false });
   } catch (e) {
     if (e.name === 'AbortError') { bot.typing = false; bot.temp = false; if (!bot.text) messages.splice(messages.indexOf(bot), 1); }
@@ -228,9 +259,37 @@ async function send(textOverride) {
 
 function setBusy(b) {
   busy = b; updateSend();
-  sendBtn.textContent = b ? '■' : '전송';
+  sendBtn.innerHTML = b ? `${ic('stop', 'fill')}<span>멈추기</span>` : `${ic('send')}<span>전송</span>`;
   $('#status').textContent = b ? '입력 중…' : '갸루 스타일 전문가 · 17세';
   sendBtn.disabled = b ? false : sendBtn.disabled;
+}
+
+// ───────── 이미지 생성 ─────────
+function stylePrompt(rec) {
+  const f = (arr) => (Array.isArray(arr) ? arr.map((x) => `${x.item}${x.tip ? ` (${x.tip})` : ''}`).join(', ') : '');
+  return `Edit this photo. Keep the same person: same face identity, pose, camera angle, background and photo quality. Do not change the person's age or body shape. Give them a Japanese gyaru look: ${rec.gyaruStyle || 'gyaru style'}. ` +
+    `Makeup: ${f(rec.makeup)}. Hair: ${f(rec.hair)}. Fashion: ${f(rec.fashion)}. Color palette: ${(rec.colors || []).join(', ')}. ` +
+    'Photorealistic, natural skin texture, tasteful and wholesome, fully clothed.';
+}
+async function generateImage(id) {
+  if (busy) return;
+  const idx = messages.findIndex((x) => x.id === id); const src = messages[idx];
+  if (!src?.rec) return;
+  let photo = null;
+  for (let i = idx; i >= 0 && !photo; i--) if (messages[i].role === 'user' && messages[i].images?.length) photo = messages[i].images[0];
+  if (!photo) return toast('먼저 내 사진을 보내줘!');
+  if (!hasImgKey) { toast('설정에서 이미지 생성 키를 먼저 입력해줘!'); openSheet(); return; }
+  const bot = { id: crypto.randomUUID(), role: 'assistant', text: '잠깐만~ 그려볼게! (10~30초 걸려)', ts: Date.now(), typing: true, temp: true };
+  messages.push(bot); renderOne(bot); setBusy(true); sendBtn.disabled = true;
+  try {
+    const r = await api('/api/img/generate', { method: 'POST', body: JSON.stringify({ image: photo, prompt: stylePrompt(src.rec) }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `오류 (${r.status})`);
+    Object.assign(bot, { text: '짜잔~! 이렇게 해보면 어때? 완전 찰떡이지 💖✨\n\n마음에 들면 저장해서 미용실이랑 쇼핑할 때 보여줘 🫶', genImage: d.image, typing: false, temp: false });
+  } catch (e) {
+    Object.assign(bot, { text: '앗 이미지 만들다 에러났어 ㅠㅠ\n' + (e.message || '알 수 없는 오류'), error: true, typing: false, temp: false });
+  }
+  bot.ts = Date.now(); renderOne(bot); persist(); setBusy(false);
 }
 
 // ───────── 설정 시트 / API 키 ─────────
@@ -245,6 +304,11 @@ async function refreshKeyState() {
     $('#keyState').innerHTML = s.hasKey ? `✅ 저장됨 <b>gsk_${esc(s.hint)}</b>` : '⚠️ 아직 키가 없어요';
     $('#keyDelete').classList.toggle('hidden', !s.hasKey);
   } catch { $('#keyState').textContent = '서버에 연결할 수 없어요'; }
+  try {
+    const g = await (await api('/api/img/status')).json();
+    hasImgKey = !!g.hasKey;
+    $('#imgKeyState').innerHTML = g.hasKey ? `✅ 저장됨 <b>${esc(g.hint)}</b>` : '⚠️ 아직 키가 없어요 (선택)';
+  } catch { hasImgKey = false; $('#imgKeyState').textContent = '이미지 생성은 배포 서버에서만 쓸 수 있어요'; }
 }
 async function loadModels() {
   const sel = $('#modelSel'); const cur = localStorage.getItem('model') || window.__defaultModel || '';
@@ -263,13 +327,27 @@ $('#keySave').onclick = async () => {
   try {
     const r = await api('/api/key', { method: 'POST', body: JSON.stringify({ key }) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error);
-    $('#keyInput').value = ''; toast('API 키 저장 완료! 💖'); await refreshKeyState(); loadModels();
+    $('#keyInput').value = ''; toast('API 키 저장 완료!'); await refreshKeyState(); loadModels();
   } catch (e) { toast(e.message || '저장 실패'); }
   $('#keySave').disabled = false;
 };
 $('#keyDelete').onclick = async () => {
   if (!confirm('저장된 API 키를 삭제할까?')) return;
   await api('/api/key', { method: 'DELETE' }); toast('키를 삭제했어'); await refreshKeyState(); loadModels();
+};
+$('#imgKeySave').onclick = async () => {
+  const key = $('#imgKeyInput').value.trim(); if (!key) return toast('키를 입력해줘!');
+  $('#imgKeySave').disabled = true;
+  try {
+    const r = await api('/api/img/key', { method: 'POST', body: JSON.stringify({ key }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error);
+    $('#imgKeyInput').value = ''; toast('이미지 키 저장 완료!'); await refreshKeyState();
+  } catch (e) { toast(e.message || '저장 실패'); }
+  $('#imgKeySave').disabled = false;
+};
+$('#imgKeyDelete').onclick = async (e) => {
+  e.preventDefault(); if (!confirm('이미지 생성 키를 삭제할까?')) return;
+  await api('/api/img/key', { method: 'DELETE' }); toast('이미지 키를 삭제했어'); refreshKeyState();
 };
 $('#modelSel').onchange = (e) => localStorage.setItem('model', e.target.value);
 $('#clearChat').onclick = () => {
@@ -290,37 +368,78 @@ $('#file').onchange = async (e) => {
   }
   e.target.value = ''; renderPreview();
 };
-$('#preview').onclick = (e) => { const i = e.target.dataset.rm; if (i !== undefined) { pending.splice(+i, 1); renderPreview(); } };
+$('#preview').onclick = (e) => {
+  const b = e.target.closest('[data-rm]'); if (!b) return;
+  pending.splice(+b.dataset.rm, 1); renderPreview();
+};
 msgsEl.onclick = (e) => {
-  if (e.target.dataset.zoom !== undefined) { $('#lightbox img').src = e.target.src; $('#lightbox').classList.remove('hidden'); }
-  const id = e.target.dataset.save;
-  if (id) {
+  const z = e.target.closest('[data-zoom]');
+  if (z) { $('#lightbox img').src = z.src; $('#lightbox').classList.remove('hidden'); return; }
+  const g = e.target.closest('[data-gen]');
+  if (g) return generateImage(g.dataset.gen);
+  const sv = e.target.closest('[data-save]');
+  if (sv) {
+    const id = sv.dataset.save;
     const i = recs.findIndex((r) => r.id === id);
     if (i >= 0) { recs.splice(i, 1); toast('추천함에서 뺐어'); }
-    else { const m = messages.find((x) => x.id === id); if (m?.rec) { recs.push({ id, rec: m.rec, ts: Date.now() }); toast('추천함에 저장했어 ⭐'); } }
+    else { const m = messages.find((x) => x.id === id); if (m?.rec) { recs.push({ id, rec: m.rec, ts: Date.now() }); toast('추천함에 저장했어!'); } }
     persistRecs(); renderOne(messages.find((x) => x.id === id));
   }
 };
 $('#lightbox').onclick = () => $('#lightbox').classList.add('hidden');
 $('#recsBtn').onclick = () => { renderRecs(); $('#recsView').classList.remove('hidden'); };
 $('#recsBack').onclick = () => $('#recsView').classList.add('hidden');
-$('#recsList').onclick = (e) => { const id = e.target.dataset.del; if (id) { recs = recs.filter((r) => r.id !== id); persistRecs(); renderRecs(); if (messages.some((m) => m.id === id)) renderOne(messages.find((m) => m.id === id)); } };
-
-const QUICK = ['📸 내 사진 분석해줘', '💄 갸루 메이크업 추천', '💇‍♀️ 어울리는 헤어는?', '👗 코디 추천해줘', '🎀 갸루 종류 알려줘'];
-$('#quick').innerHTML = QUICK.map((q) => `<button>${q}</button>`).join('');
-$('#quick').onclick = (e) => {
-  if (e.target.tagName !== 'BUTTON') return;
-  if (e.target.textContent.startsWith('📸')) { $('#file').click(); inputEl.value = '내 얼굴형이랑 피부톤 분석해서 어울리는 갸루 스타일 추천해줘!'; autoGrow(); updateSend(); }
-  else send(e.target.textContent.replace(/^\S+\s/, '') + '!');
+$('#recsList').onclick = (e) => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  const id = b.dataset.del;
+  recs = recs.filter((r) => r.id !== id); persistRecs(); renderRecs();
+  if (messages.some((m) => m.id === id)) renderOne(messages.find((m) => m.id === id));
 };
+
+const QUICK = [
+  { icon: 'camera', label: '내 사진 분석해줘', photo: true },
+  { icon: 'lipstick', label: '갸루 메이크업 추천', text: '갸루 메이크업 추천해줘!' },
+  { icon: 'scissors', label: '어울리는 헤어는?', text: '나한테 어울리는 헤어 뭐야?' },
+  { icon: 'hanger', label: '코디 추천해줘', text: '코디 추천해줘!' },
+  { icon: 'sparkle', label: '갸루 종류 알려줘', text: '갸루 종류 알려줘!' },
+];
+$('#quick').innerHTML = QUICK.map((q, i) => `<button data-q="${i}">${ic(q.icon)}${esc(q.label)}</button>`).join('');
+$('#quick').onclick = (e) => {
+  const b = e.target.closest('button[data-q]'); if (!b) return;
+  const q = QUICK[+b.dataset.q];
+  if (q.photo) { $('#file').click(); inputEl.value = '내 얼굴형이랑 피부톤 분석해서 어울리는 갸루 스타일 추천해줘!'; autoGrow(); updateSend(); }
+  else send(q.text);
+};
+
+// ───────── 웹 인터랙션: 클릭 반짝 · 마우스 따라 빛나는 배경 ─────────
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+document.addEventListener('pointerdown', (e) => {
+  if (reduceMotion() || !e.target.closest('button,.bubble,.rec,.imgs img,.quick button,.sec li,.chip,.pill')) return;
+  for (let i = 0; i < 7; i++) {
+    const s = document.createElement('span');
+    s.className = 'burst';
+    const a = (i / 7) * Math.PI * 2, d = 30 + Math.random() * 18;
+    s.style.left = e.clientX + 'px'; s.style.top = e.clientY + 'px';
+    s.style.setProperty('--dx', Math.cos(a) * d + 'px'); s.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    s.innerHTML = ic('sparkle', 'fill');
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 650);
+  }
+}, { passive: true });
+window.addEventListener('pointermove', (e) => {
+  if (!matchMedia('(min-width:900px)').matches) return;
+  document.documentElement.style.setProperty('--mx', (e.clientX / innerWidth) * 100 + '%');
+  document.documentElement.style.setProperty('--my', (e.clientY / innerHeight) * 100 + '%');
+}, { passive: true });
 
 // ───────── 시작 ─────────
 function greet() {
-  messages.push({ id: crypto.randomUUID(), role: 'assistant', ts: Date.now(), text: '안뇽~! 나 미유야 💖 일본에서 온 갸루!\n\n사진 한 장만 보내주면 얼굴형이랑 피부톤 보고 딱 어울리는 메이크업, 헤어, 패션 추천해줄게 ✨\n\n아래 ＋ 버튼으로 사진 보내봐~ 🫶' });
+  messages.push({ id: crypto.randomUUID(), role: 'assistant', ts: Date.now(), text: '안뇽~! 나 미유야 💖 일본에서 온 갸루!\n\n사진 한 장만 보내주면 얼굴형이랑 피부톤 보고 딱 어울리는 메이크업, 헤어, 패션 추천해줄게 ✨\n\n아래 + 버튼으로 사진 보내봐~ 🫶' });
   persist(); renderAll();
 }
 (async () => {
-  messages = (await DB.get('messages')) || []; recs = (await DB.get('recs')) || [];
+  setBusy(false);
+  try { messages = (await DB.get('messages')) || []; recs = (await DB.get('recs')) || []; } catch { messages = []; recs = []; }
   await refreshKeyState();
   if (!messages.length) greet(); else renderAll();
   if (!hasKey) setTimeout(openSheet, 400);
