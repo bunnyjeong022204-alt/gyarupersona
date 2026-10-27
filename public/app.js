@@ -54,6 +54,8 @@ const ICONS = {
   scissors: '<circle cx="6" cy="6.5" r="2.5"/><circle cx="6" cy="17.5" r="2.5"/><path d="M8.2 8.2L20 17M8.2 15.8L20 7"/>',
   hanger: '<path d="M12 8.5V6a2 2 0 1 0-2-2"/><path d="M12 8.5L3.5 15.5h17z"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
+  bow: '<path d="M12 12c-3.2-4.2-7.5-4.6-7.5-1.2 0 2.3 3.7 2.3 7.5 1.2zM12 12c3.2-4.2 7.5-4.6 7.5-1.2 0 2.3-3.7 2.3-7.5 1.2z"/><circle cx="12" cy="12" r="1.6"/><path d="M12 13.6L9.5 20M12 13.6L14.5 20"/>',
+  tiara: '<path d="M3.5 17l1.8-8.5 4.2 4 2.5-5.5 2.5 5.5 4.2-4 1.8 8.5z"/><path d="M3.5 20.5h17"/>',
 };
 const ic = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
 document.querySelectorAll('[data-ic]').forEach((el) => { el.innerHTML = ic(el.dataset.ic, el.dataset.fill ? 'fill' : ''); });
